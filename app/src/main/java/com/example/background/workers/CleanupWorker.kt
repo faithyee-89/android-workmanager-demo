@@ -25,8 +25,10 @@ import java.io.File
 
 /**
  * Cleans up temporary files generated during blurring process
+ * 清理临时文件worker
  */
 private const val TAG = "CleanupWorker"
+
 class CleanupWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
 
     override fun doWork(): Result {

@@ -39,6 +39,7 @@ class BlurViewModel(application: Application) : ViewModel() {
     private var imageUri: Uri? = null
     internal var outputUri: Uri? = null
     private val workManager = WorkManager.getInstance(application)
+    //
     internal val outputWorkInfos: LiveData<List<WorkInfo>> = workManager.getWorkInfosByTagLiveData(TAG_OUTPUT)
 
     init {
@@ -53,6 +54,7 @@ class BlurViewModel(application: Application) : ViewModel() {
 
     /**
      * Creates the input data bundle which includes the Uri to operate on
+     * 创建blurWorker的data，相当于intent的bundle
      * @return Data which contains the Image Uri as a String
      */
     private fun createInputDataForUri(): Data {
@@ -65,18 +67,24 @@ class BlurViewModel(application: Application) : ViewModel() {
 
     /**
      * Create the WorkRequest to apply the blur and save the resulting image
+     * 执行模糊图片操作的流程
+     * 1. CleanupWorker
+     * 2. BlurWorker
+     * 3. SaveImageToFileWorker
      * @param blurLevel The amount to blur the image
      */
     internal fun applyBlur(blurLevel: Int) {
         // Add WorkRequest to Cleanup temporary images
+        // 执行模糊处理前先执行 清理临时文件 任务
         var continuation = workManager
             .beginUniqueWork(
-                IMAGE_MANIPULATION_WORK_NAME,
-                ExistingWorkPolicy.REPLACE,
+                IMAGE_MANIPULATION_WORK_NAME, // CleanupWorker的key
+                ExistingWorkPolicy.REPLACE, //
                 OneTimeWorkRequest.from(CleanupWorker::class.java)
             )
 
         // Add WorkRequests to blur the image the number of times requested
+        // 从这个for循环能看出，图片模糊的等级，其实是重复给image加模糊操作，也就是多次执行blurWorker
         for (i in 0 until blurLevel) {
             val blurBuilder = OneTimeWorkRequestBuilder<BlurWorker>()
 
@@ -91,6 +99,7 @@ class BlurViewModel(application: Application) : ViewModel() {
         }
 
         // Create charging constraint
+        // 创建约束，这个应该是电量限制
         val constraints = Constraints.Builder()
             .setRequiresCharging(true)
             .build()
@@ -103,6 +112,7 @@ class BlurViewModel(application: Application) : ViewModel() {
         continuation = continuation.then(save)
 
         // Actually start the work
+        // workmanager 真正运行的方法
         continuation.enqueue()
     }
 
